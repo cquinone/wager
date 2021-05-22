@@ -20,7 +20,7 @@ class Player:
         self.done = False
 
 
-#...
+# blits rendered lines above a box, descending onto it
 def blitDict(ques_surfs, reference_box):
     size = len(ques_surfs.keys())
     for key in ques_surfs.keys():
@@ -104,6 +104,7 @@ def interpolate(points, old_points):
 pg.init()
 pg.display.set_caption('Pick a Distro!')
 screen = pg.display.set_mode((WIDTH, HEIGHT))
+clock = pg.time.Clock()
 overall_count = 0
 
 # coordinates of box to drawn in, 600 by 280 (last args are w,h)
@@ -453,4 +454,5 @@ while not done:
             pg.draw.rect(screen, BLUE, input_box, 3)
         pg.display.update()
 
+    clock.tick(120)
     overall_count = overall_count +  1
