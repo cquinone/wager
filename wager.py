@@ -20,10 +20,25 @@ class Player:
         self.done = False
 
 
+#...
+def blitDict(ques_surfs, reference_box):
+    size = len(ques_surfs.keys())
+    for key in ques_surfs.keys():
+        screen.blit(ques_surfs[key], (reference_box.x+10, reference_box.y+(-20-30*(size-1)) ) )
+        size = size - 1
+        text_w , text_h = smallfont.size(key)
+        pg.display.update(pg.Rect(reference_box.x, reference_box.y+(-20-30*(size)), text_w, text_h))
+
+
+# performs numerical integration via trapezoidal rule
+# pure integration, or x*integral mode
 def trapezoid(points,mode):
     integral = 0
     for i in range(len(points)):
         if i <= len(points)-2:
+            # skip where obviously intended to be discontinuous!
+            if abs(points[i+1][0]-points[i][0]) >= 2:
+                continue
             addition = .5*(points[i][1]+points[i+1][1])*(points[i+1][0]-points[i][0])
             if mode  == "avg":
                 # the value this trapezoid adds is the mean x it covers
@@ -32,9 +47,12 @@ def trapezoid(points,mode):
     return integral
 
 
-def averagex(points, min_guess, max_guess):
+# projects drawn points into guess space, converts to probability distribution
+# then returns < guess > 
+def averageX(points, min_guess, max_guess):
     avg_x = 0
     real_points = []
+    #xs = []
     for point in points:
         # for x: subtract the start, divide by width, mult by guess width
         real_x = (max_guess - min_guess)*(point[0]-plot_box.x)/(plot_box.w)
@@ -48,6 +66,8 @@ def averagex(points, min_guess, max_guess):
     return trapezoid(real_points, "avg")
 
 
+# stops game when to let distribution be reviewed
+# returns new color for done plotting button once pressed
 def wait(curr_player):
     while True:
         for event in pg.event.get():
@@ -62,6 +82,8 @@ def wait(curr_player):
                     return done_color
 
 
+# interpolates between drawn points, 
+# to make up for great mouse speed
 def interpolate(points, old_points):
     add_points = []
     for i in range(len(points)):
@@ -69,6 +91,9 @@ def interpolate(points, old_points):
             continue
         if i != len(points) - 1:
             if points[i] in add_points or points[i + 1] in add_points:
+                continue
+            # dont interpolate between points that arent "next" to each other
+            if abs(points[i+1][0]-points[i][0]) >= 30:  # MIGHT NEED ADJUSTING!!
                 continue
             mid_x = (points[i + 1][0] + points[i][0]) / 2.0
             mid_y = (points[i + 1][1] + points[i][1]) / 2.0
@@ -95,7 +120,7 @@ done_color = BLACK
 
 # variable initialization
 
-active = False
+active = False  # flag for text input button pressed
 text = ""
 curr_input = ""
 check = False
@@ -109,7 +134,7 @@ guesses = {}
 # fonts
 
 font = pg.font.SysFont('couriernew', 20, bold=True)
-smallfont  = pg.font.SysFont('couriernew', 16, bold=True)
+smallfont  = pg.font.SysFont('couriernew', 18, bold=True)
 tinyfont = pg.font.SysFont('couriernew', 12, bold=False)
 
 # read in wager data
@@ -126,9 +151,7 @@ for line in file2.readlines():
         lines.append(line)
 count = 0
 for i in range(len(lines)):
-    # data in frorm: question, next line is ans
     if i != len(lines) - 1 and count % 2 == 0:
-        # strip the newline character
         lines[i] = lines[i][:-1]
         questions[lines[i]] = float(lines[i + 1])
     count = count + 1
@@ -186,11 +209,13 @@ while not done:
                 continue
         if avg_tot == len(players):
             break
+
         # if first time starting distro drawing part of game
         if overall_count == 0:
             screen.fill(WHITE)
             pg.display.update()
             turn_count = 0
+        
         # if guesses exist, then instead for first player without point set, get
         while turn_count <= num_players-1:
             curr_player = players[turn_count]
@@ -199,6 +224,7 @@ while not done:
             else:
                 turn_count = 0
                 break
+        
         # draw box for min,max and plot so far here
         # but first interpolate between plotted points to get better curve
         if turn_count != num_players: # so if you havent done below for all the players
@@ -207,16 +233,19 @@ while not done:
             # below is if not clicking but had been, meaning stopped doing points
             if not pg.mouse.get_pressed()[0] and click == True:
                 click = False
-                for i in range(3):
+                # beef up the number of points, pygame does sparse mouse polling
+                for i in range(2):
                     interpolate(points, old_points)
+                    points.sort(key=lambda x: x[0])
                 old_points = points.copy()
     
             pg.draw.rect(screen, BLACK, plot_box, 3)  # last arg is width to make it outline
             pg.draw.rect(screen, done_color, done_box)
             for point in points:
-                # screen.fill(BLACK, (point, (1, 1)))
                 pg.draw.line(screen, BLACK, point, point, 3)
-            pg.display.update([plot_box, done_box])
+            pg.display.update([plot_box, done_box,])
+            # redraw question above plotting box
+            blitDict(ques_surfs, plot_box)
             
             # also display guesses !
             up_down = 0
@@ -246,7 +275,7 @@ while not done:
                     if guesses[player.name] == max_guess:
                         screen.blit(surface, (plot_box.x+plot_box.width+2, plot_box.y))
                     if guesses[player.name] == min_guess:
-                        screen.blit(surface, (plot_box.x-text_w, plot_box.y))
+                        screen.blit(surface, (plot_box.x-text_w-5, plot_box.y))
                 up_down = up_down + 1
     
             # use enter or done box click as "done drawing"
@@ -279,7 +308,10 @@ while not done:
                     points.sort(key=lambda x: x[0])
                     for i in range(len(points)):
                         if i != len(points) - 1:
-                            pg.draw.line(screen, BLACK, points[i], points[i+ 1], 1)
+                            # skip where obviously intended to be discontinuous!
+                            if abs(points[i+1][0]-points[i][0]) >= 30:
+                                continue
+                            pg.draw.line(screen, BLACK, points[i], points[i+1], 1)
                     
                     curr_player.points = points.copy()
                     # makes done box go green once double clicked, single click blits above lines
@@ -297,7 +329,7 @@ while not done:
         # now if all distros drawn, integrate and score!
         if turn_count == num_players:
             for player in players:
-                player.avg = averagex(player.points, min_guess, max_guess)
+                player.avg = averageX(player.points, min_guess, max_guess)
                 # now score eahc player, max of 100 alloted for perfect avg, otherwise scale with abs(error)
                 round_score = 0
                 if player.avg == ans:
@@ -356,28 +388,25 @@ while not done:
                 # print (really, draw) the question to be answered (guessing!)
                 if ques_drawn == False:
                     screen.fill(WHITE)
-                    # wrap the text! split and do two surfaces
-                    if len(ques) > 70:
-                        ques1 = ques[:55]
-                        ques2 = ques[55:]
-                        surf1 = smallfont.render(ques1, True, BLACK)
-                        surf2 = smallfont.render(ques2, True, BLACK)
-                        text_w1 , text_h1 = smallfont.size(ques1)
-                        screen.blit(surf1, (input_box.x+10, input_box.y-50))
-                        text_w2 , text_h2 = smallfont.size(ques2)
-                        screen.blit(surf2, (input_box.x+10, input_box.y-20))
-                        if text_w1 > text_w2:
-                            text_w1 = text_w
-                        elif text_w2 >= text_w1:
-                            text_w2 = text_w
-                        pg.display.update(pg.Rect(input_box.x, input_box.y-80, text_w, text_h1))
-                        ques_drawn = True
-                    else:
-                        surface = smallfont.render(ques, True, BLACK)
-                        text_w , text_h = smallfont.size(ques)
-                        screen.blit(surface, (input_box.x+10, input_box.y-20))
-                        pg.display.update(pg.Rect(input_box.x, input_box.y-50, text_w, text_h))
-                        ques_drawn = True
+                    ques_surfs = {}
+                    char_count = 0
+                    cutoff = 50
+                    # wrap the text! split per cutoff characters or so
+                    for i in range(len(ques)):
+                        if char_count >= cutoff:
+                            mid_index = cutoff*len(ques_surfs)  # where are we in ques so far
+                            ques_bit = ques[mid_index:(mid_index+cutoff)]
+                            ques_surfs[ques_bit] = smallfont.render(ques_bit, True, BLACK)
+                            char_count = 0
+                        char_count = char_count + 1
+                    # if characters leftover, or, ques != multiple of cutoff
+                    if len(ques) > cutoff*len(ques_surfs):
+                        ques_surfs[ques[cutoff*len(ques_surfs):]] = smallfont.render(ques[cutoff*len(ques_surfs):], True, BLACK)
+
+                    # blit the dict of surfs around input box (above)
+                    blitDict(ques_surfs, input_box)
+
+                    ques_drawn = True
 
                 if len(guesses.keys()) == num_players:
                     gamestart = True
@@ -407,10 +436,15 @@ while not done:
                             curr_input = ""
                             pg.draw.rect(screen, WHITE, input_small)
                             names.pop(0)
-                   	# if a new guess has been recorded, blank out old guess prod
+                    # if a new guess has been recorded, blank out old guess prod
                     if len(guesses.keys()) != old_guess_count:
-                        screen.blit(name_surface, (input_box.x+10, input_box.y+55))
                         pg.draw.rect(screen, WHITE, pg.Rect(input_box.x+10, input_box.y+55, text_w+10,text_h))
+                        # show what has been guessed so far
+                        guess_str = ""
+                        for guess in guesses.values():
+                            guess_str = guess_str + " "+str(guess)
+                        guess_surface = smallfont.render("guessed so far:"+guess_str,True, BLACK)
+                        screen.blit(guess_surface, (input_box.x+10, input_box.y+105))
 
         # general drawing each time
         if not active:
