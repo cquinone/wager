@@ -31,7 +31,7 @@ def blitDict(ques_surfs, reference_box):
 
 
 # performs numerical integration via trapezoidal rule
-# pure integration, or x*integral mode
+# normalization, < guess >, or <1/abs(ans-guess)>
 def trapezoid(points,mode):
     integral = 0
     for i in range(len(points)):
@@ -40,19 +40,31 @@ def trapezoid(points,mode):
             if abs(points[i+1][0]-points[i][0]) >= 2:
                 continue
             addition = .5*(points[i][1]+points[i+1][1])*(points[i+1][0]-points[i][0])
-            if mode  == "avg":
+            mid_x = (points[i+1][0]+points[i][0])/2
+            if mode  == "score":
                 # the value this trapezoid adds is the mean x it covers
-                addition = addition*(points[i+1][0]+points[i][0])/2
+                #addition = addition*(points[i+1][0]+points[i][0])/2
+                if ans != mid_x:
+                    if 1/abs(ans-mid_x) <= 1000:
+                        addition = addition*(1/(abs(ans-mid_x)))
+                    else:
+                        print("1000 weight")
+                        addition = addition*1000
+                else:
+                    print("1000 weight")
+                    addition = addition*1000
+            if mode == "avg":
+                # the value this trapezoid adds is the mean x it covers
+                addition = addition*mid_x
             integral = integral + addition
     return integral
 
 
 # projects drawn points into guess space, converts to probability distribution
-# then returns < guess > 
-def averageX(points, min_guess, max_guess):
+# then calls trapezoid to return <1/abs(ans-guess)>, < guess > 
+def guess_integral(points, min_guess, max_guess):
     avg_x = 0
     real_points = []
-    #xs = []
     for point in points:
         # for x: subtract the start, divide by width, mult by guess width
         real_x = (max_guess - min_guess)*(point[0]-plot_box.x)/(plot_box.w)
@@ -63,7 +75,7 @@ def averageX(points, min_guess, max_guess):
     # norm to make actual prob distro, then get avg x
     for point in real_points:
         point[1] = point[1]/norm
-    return trapezoid(real_points, "avg")
+    return trapezoid(real_points, "score"), trapezoid(real_points, "avg")
 
 
 # stops game when to let distribution be reviewed
@@ -85,6 +97,7 @@ def wait(curr_player):
 # interpolates between drawn points, 
 # to make up for great mouse speed
 def interpolate(points, old_points):
+    points.sort(key=lambda x: x[0])
     add_points = []
     for i in range(len(points)):
         if points[i] in old_points:
@@ -162,6 +175,7 @@ file2.close()
 gamestart = False
 ques = rand.choice(list(questions.keys()))
 ans = questions[ques]
+#ans = 50
 
 while not done:
     enter = False
@@ -244,7 +258,7 @@ while not done:
             pg.draw.rect(screen, done_color, done_box)
             for point in points:
                 pg.draw.line(screen, BLACK, point, point, 3)
-            pg.display.update([plot_box, done_box,])
+            pg.display.update([plot_box, done_box])
             # redraw question above plotting box
             blitDict(ques_surfs, plot_box)
             
@@ -330,15 +344,7 @@ while not done:
         # now if all distros drawn, integrate and score!
         if turn_count == num_players:
             for player in players:
-                player.avg = averageX(player.points, min_guess, max_guess)
-                # now score eahc player, max of 100 alloted for perfect avg, otherwise scale with abs(error)
-                round_score = 0
-                if player.avg == ans:
-                    round_score = 100
-                else:
-                    # only keep three decimal places for ease of reading
-                    round_score = min(100,round(1/abs(ans-player.avg),3))
-                player.score = player.score + round_score
+                player.score, player.avg = guess_integral(player.points, min_guess, max_guess)
                 print("NAME: ", player.name)
                 print("SCORE, AVG, ANS: ", player.score, player.avg, ans)
 
@@ -391,7 +397,7 @@ while not done:
                     screen.fill(WHITE)
                     ques_surfs = {}
                     char_count = 0
-                    cutoff = 50
+                    cutoff = 70
                     # wrap the text! split per cutoff characters or so
                     for i in range(len(ques)):
                         if char_count >= cutoff:
