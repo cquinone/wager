@@ -1,4 +1,6 @@
 import pygame as pg
+from scipy.signal import savgol_filter
+from scipy.interpolate import interp1d
 import random as rand
 import sys
 
@@ -16,7 +18,7 @@ class Player:
         self.score = 0
         self.avg = -1
         self.points = []
-        self.old_points = []
+        self.points_count = 0
         self.done = False
 
 
@@ -30,17 +32,18 @@ class Button:
         self.enter = False
         self.push_count = 0
 
-    def handle(self,event):
+    def handle(self,event,outside=False):
         if pg.mouse.get_pressed()[0]:
             self.clicked = True
-        if event.type == pg.MOUSEBUTTONUP and self.type == "draw":
+        if (event.type == pg.MOUSEBUTTONUP and self.type == "draw" and gamestart) or (self.type == "draw" and gamestart and outside):
             self.clicked = False
             # remove duplicate x axis points (make it a function!)
-            curr_player.points = filter_duplicate(points)
+            #curr_player.points = filter_duplicate(points)
+            curr_player.points = interpolate_new(points, curr_player.points_count)
             # beef up the points a bit (fill in between!)
-            curr_player.points = interpolate(points, old_points)
+            #curr_player.points = interpolate(points, old_points)
             curr_player.points.sort(key=lambda x: x[0])
-            screen.fill(WHITE)
+            pg.draw.rect(screen, WHITE, pg.Rect(plot_box.rect.x+5 , plot_box.rect.y+5, plot_box.rect.w-7, plot_box.rect.h-7))
 
         if self.clicked:
             if self.type == "text":
@@ -61,6 +64,8 @@ class Button:
                     self.push_count = self.push_count + 1
             
             if self.type == "draw":
+                if event.type != pg.MOUSEMOTION:
+                    curr_player.points_count = len(points)
                 if event.type == pg.MOUSEMOTION and gamestart:
                     points.append(event.pos)
 
@@ -86,25 +91,6 @@ class Button:
         text_w , text_h = smallfont.size(title_text)
         screen.blit(surface, (self.rect.x+10, self.rect.y-20+h))
         pg.display.update(pg.Rect(self.rect.x+10, self.rect.y-20+h, text_w, text_h))
-
-
-# checks for largest list index element with given first value, removes lower index copies
-def filter_duplicate(points):
-    x_indexes = {}
-    filter_points = []
-    for i in range(len(points)):
-        point = points[i]
-        if point[0] in x_indexes:
-            if i > x_indexes[point[0]][0]:
-                filter_points.remove(x_indexes[point[0]][1])
-                filter_points.append(point)
-                x_indexes[point[0]] = [i,point]
-        if point[0] not in x_indexes:
-            x_indexes[point[0]] = [i,point]
-            filter_points.append(point)
-        #print("x_indexes: ", x_indexes)
-        #print("filter_points: ", filter_points)
-    return filter_points
 
 
 # performs numerical integration via trapezoidal rule
@@ -169,25 +155,51 @@ def wait():
                     return True
 
 
-# interpolates between drawn points, 
-# to make up for great mouse speed
-def interpolate(curr_points, old_points):
-    curr_points.sort(key=lambda x: x[0])
-    add_points = []
-    for i in range(len(points)):
-        if curr_points[i] in old_points:
-            continue
-        if i != len(curr_points) - 1:
-            if curr_points[i] in add_points or curr_points[i + 1] in add_points:
-                continue
-            # dont interpolate between points that arent "next" to each other
-            if abs(curr_points[i+1][0]- curr_points[i][0]) >= 30:  # MIGHT NEED ADJUSTING!!
-                continue
-            mid_x = (curr_points[i + 1][0] + curr_points[i][0]) / 2.0
-            mid_y = (curr_points[i + 1][1] + curr_points[i][1]) / 2.0
-            add_points.append((mid_x, mid_y))
-            curr_points.append((mid_x, mid_y))
-    return curr_points
+# for new points overlaying old, replace with fair interpolation
+def interpolate_new(points, old_count):
+    new_points = points[old_count:]
+    old_points  = points[:old_count]
+    xs = []
+    ys = []
+    remove_list = []
+    # remove old points that overlap by x values
+    if len(new_points) > 0:
+        min_x = min(new_points, key=lambda x: (x[0]))[0]
+        max_x = max(new_points, key=lambda x: (x[0]))[0]
+        for i in range(len(old_points)):
+            if old_points[i][0] > min_x and old_points[i][0] < max_x:
+                remove_list.append(old_points[i])
+        for point in remove_list:
+            old_points.remove(point)
+
+    for i in range(len(new_points)):
+        xs.append(new_points[i][0])
+        ys.append(new_points[i][1])
+    
+    if len(xs) > 1:
+        f = interp1d(xs, ys)  # this is now interpolation function for new addition
+        new_ys = f(xs)
+        new_points = []
+        for i in range(len(xs)):
+            new_points.append([xs[i],new_ys[i]])
+    return old_points+new_points
+
+
+# attempt at adding a function to smooth all points, after pressing smooth button
+def smooth_points(pre_points):
+    smoothed = []
+    if len(pre_points) < 6:
+        return pre_points
+    xs = [x[0] for x in pre_points]
+    ys = [x[1] for x in pre_points]
+    size = len(ys)-2
+    if size%2 == 0:
+        size = size + 1
+    yhat = savgol_filter(ys, size, 3)
+    for i in range(len(xs)):
+        smoothed.append([xs[i],yhat[i]])
+
+    return smoothed
 
 
 pg.init()
@@ -204,9 +216,10 @@ plot_box = Button("draw", BLACK, 60, 135, 600, 280)
 # coordinates of input box to enter names and guesses into
 
 input_box = Button("text", BLACK, 60, 455, 140, 50)
+smooth_box = Button("button", BLUE, 730, 410,200,50)
 done_box = Button("button", BLACK, 730, 310, 200, 50)
 
-boxes = [input_box,done_box,plot_box]
+boxes = [input_box,done_box,plot_box, smooth_box]
 
 # variable initialization
 
@@ -253,11 +266,12 @@ while not quit:
     for event in pg.event.get():
         if event.type == pg.QUIT:
             quit = True
-        #if pg.mouse.get_pressed()[0]:
-        #    click = True
         for box in boxes:
             if box.rect.collidepoint(mouse_pos):
                 box.handle(event)
+            else:
+                if box.type == "draw" and box.clicked == True:
+                    box.handle(event, outside=True)
 
     if not gamestart:
         # continue set up for this round
@@ -410,20 +424,13 @@ while not quit:
         done_box.title("TO FINISH PLOTTING", BLACK, -30)
 
         points = curr_player.points
-        old_points = curr_player.old_points
 
-        if done_box.push_count == 1:
+        if done_box.push_count != 0:
             print("PRESSED!!!")
             if len(curr_player.points) != 0:
                 done_box.color = GREEN
                 pg.draw.rect(screen, done_box.color,done_box.rect)
                 pg.display.update(done_box.rect)
-                for i in range(len(points)):
-                    if i != len(points) - 1:
-                        # skip where obviously intended to be discontinuous!
-                        if abs(points[i+1][0]-points[i][0]) >= 30:
-                            continue
-                        pg.draw.line(screen, BLACK, points[i], points[i+1], 1)
                 pg.display.update(plot_box.rect)
                 curr_player.done = wait()
                 done_box.color = BLACK
@@ -433,14 +440,29 @@ while not quit:
                     turn_count = turn_count + 1
                     curr_player = players[turn_count]
 
+        if smooth_box.push_count != 0:
+            print("smoothing!!")
+            smooth_box.push_count = 0
+            pg.draw.rect(screen, WHITE, pg.Rect(plot_box.rect.x+5 , plot_box.rect.y+5, plot_box.rect.w-7, plot_box.rect.h-7))
+            pg.display.update(plot_box.rect)
+            curr_player.points = smooth_points(curr_player.points)
+
     # general drawing calls
     if not gamestart:
         pg.draw.rect(screen, input_box.color, input_box, 3)
     if gamestart:
         pg.draw.rect(screen, done_box.color, done_box.rect)
+        pg.draw.rect(screen, smooth_box.color, smooth_box.rect)
         pg.draw.rect(screen, plot_box.color, plot_box.rect, 3)
-        for point in curr_player.points:
-            pg.draw.circle(screen, BLACK, point, 1, 0)
+        for i in range(len(curr_player.points)):
+            curr_point = curr_player.points[i]
+            # try drawing lines, save for where its too wide
+            if i != len(curr_player.points) - 1:
+                next_point = curr_player.points[i+1]
+                if abs(next_point[0]- curr_point[0]) >= 30:  # MIGHT NEED ADJUSTING!!
+                    continue
+                else:
+                    pg.draw.line(screen, BLACK, curr_point, next_point, 2)
         # draw guesses AND ticks
         for position in guess_pos.keys():
             screen.blit(guess_pos[position][0], position)
@@ -452,6 +474,11 @@ while not quit:
     overall_count = overall_count +  1
 
 # TO CONSIDER: slowness of draw, right skipping distances... in lines, TRAPezoid, interpolate (all important) ..> interp can make points where there shouldn't be!
+
+# to fix smoothing: user defines rectangle, smooths within! if too small, wont
+
+# try to make loop faster ... doesnt seem to be event handling
+# possibly filtering the duplicates? use timers to find bottleneck
 
 # black with white text? color of font for eahc bit?
 # maybe make plot buttton better
