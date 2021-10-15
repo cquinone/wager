@@ -1,0 +1,80 @@
+ {
+     "text_entry_line":
+     {
+         "colours":
+         {
+             "dark_bg": "#FFFFFF",
+             "selected_bg": "#8efa00",
+             "normal_border": "#7a81ff",
+             "normal_text": "#a5a5a5"
+         },
+        "font":
+         {
+             "name": "aotffolkpro",
+             "size": "28",
+             "bold": "0",
+             "italic": "0",
+             "regular_path": "ProFolk.otf"
+         },
+         "misc":
+         {
+             "border_width": "4",
+             "shape": "rectangle"
+         }
+     },
+      "label":
+     {
+         "colours":
+         {
+             "dark_bg": "#FFFFFF",
+             "normal_text": "#000000",
+             "text_shadow": "#505050"
+         },
+         "font":
+         {
+             "name": "aotffolkpro",
+             "size": "26",
+             "bold": "0",
+             "italic": "0"
+         },
+         "misc":
+         {
+             "text_shadow": "0",
+             "text_shadow_size": "1",
+             "text_shadow_offset": "0,0"
+         }
+     },
+     "button":
+     {
+         "colours":
+         {
+             "normal_bg": "#bbff63",
+             "hovered_bg": "#7bd900",
+             "hovered_border": "#7bd900",
+             "normal_border": "#bbff63",
+             "selected_border": "#7bd900",
+             "active_border": "#7bd900",
+             "selected_bg": "#7bd900",
+             "active_bg": "#7bd900",
+             "normal_text": "#529412",
+             "hovered_text": "#bbff63"
+         },
+        "font":
+         {
+             "name": "aotffolkpro",
+             "size": "26",
+             "bold": "1",
+             "italic": "0",
+             "regular_path": "ProFolk.otf"
+         },
+         "misc":
+         {
+             "border_width": "2",
+             "tool_tip_delay": "1.0",
+             "text_horiz_alignment": "center",
+             "text_vert_alignment": "center",
+             "text_horiz_alignment_padding": "10",
+             "text_vert_alignment_padding": "5"
+         }
+     }
+ }

@@ -1,0 +1,53 @@
+ {
+     "text_entry_line":
+     {
+         "colours":
+         {
+             "dark_bg": "#25292e",
+             "selected_bg": "#55595e",
+             "normal_text": "#7d85f9",
+             "selected_text": "#78ff9c",
+             "normal_border": "#FFFFFF"
+         },
+         "font":
+         {
+             "name": "aotffolkpro",
+             "size": "32",
+             "bold": "0",
+             "italic": "0",
+             "regular_path": "ProFolk.otf"
+         }
+     },
+ 
+     "button":
+     {
+         "colours":
+         {
+             "normal_bg": "#FFFFFF",
+             "hovered_bg": "#FFFFFF",
+             "normal_border": "#8efa00",
+             "hovered_border": "#8efa00",
+             "selected_border": "#8efa00",
+             "active_border": "#8efa00",
+             "selected_bg": "#FFFFFF",
+             "active_bg": "#FFFFFF"
+         },
+        "font":
+         {
+             "name": "aotffolkpro",
+             "size": "32",
+             "bold": "0",
+             "italic": "0",
+             "regular_path": "ProFolk.otf"
+         },
+         "misc":
+         {
+             "border_width": "5",
+             "tool_tip_delay": "1.0",
+             "text_horiz_alignment": "left",
+             "text_vert_alignment": "top",
+             "text_horiz_alignment_padding": "10",
+             "text_vert_alignment_padding": "5"
+         }
+     }
+ }

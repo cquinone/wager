@@ -1,0 +1,35 @@
+ {
+     "button":
+     {
+         "colours":
+         {
+             "normal_bg": "#acaffc",
+             "hovered_bg": "#000000",
+             "hovered_border": "#acaffc",
+             "normal_border": "#acaffc",
+             "selected_border": "#acaffc",
+             "active_border": "#7a81ff",
+             "selected_bg": "#000000",
+             "active_bg": "#000000",
+             "normal_text": "#000000",
+             "hovered_text": "#acaffc"
+         },
+        "font":
+         {
+             "name": "aotffolkpro",
+             "size": "26",
+             "bold": "1",
+             "italic": "0",
+             "regular_path": "ProFolk.otf"
+         },
+         "misc":
+         {
+             "border_width": "2",
+             "tool_tip_delay": "1.0",
+             "text_horiz_alignment": "center",
+             "text_vert_alignment": "center",
+             "text_horiz_alignment_padding": "10",
+             "text_vert_alignment_padding": "5"
+         }
+     }
+ }
