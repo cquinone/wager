@@ -13,3 +13,5 @@ Once the game has loaded, each player guesses in turn, and then plots their "bet
 each "bet" is scored as 
 < 1/|ans-x| > (averaging based on their distribution == "bet").
 Press "c" while plotting to clear all points.
+
+Note: the button "Score Table" may only be pressed in-between rounds.
