@@ -11,7 +11,7 @@
         "font":
          {
              "name": "aotffolkpro",
-             "size": "28",
+             "size": "20",
              "bold": "0",
              "italic": "0",
              "regular_path": "ProFolk.otf"
@@ -33,7 +33,7 @@
          "font":
          {
              "name": "aotffolkpro",
-             "size": "26",
+             "size": "15",
              "bold": "0",
              "italic": "0"
          },

@@ -31,5 +31,29 @@
              "text_horiz_alignment_padding": "10",
              "text_vert_alignment_padding": "5"
          }
+     },
+    "label":
+     {
+         "colours":
+         {
+             "normal_bg": "#ffd91c",
+             "dark_bg": "#ffd91c",
+             "normal_text": "#000000",
+             "text_shadow": "#505050",
+             "normal_border": "#bbff63"
+         },
+         "font":
+         {
+             "name": "aotffolkpro",
+             "size": "24",
+             "bold": "0",
+             "italic": "0"
+         },
+         "misc":
+         {
+             "text_shadow": "0",
+             "text_shadow_size": "1",
+             "text_shadow_offset": "0,0"
+         }
      }
  }
