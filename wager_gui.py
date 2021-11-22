@@ -24,23 +24,77 @@ class Player:
 	def __init__(self, name):
 	    self.name = name
 	    self.score = []
-	    self.old_count = 0
 	    self.points = []
-	    self.guess = None
+	    self.range = None
 	    self.done = False
+	    self.color = None
+	    self.bell = False
 
 
+def get_range_winner(players):
+	# now need those who won range challenge
+	win_p = []
+	within = {}
+	for p in players:
+		ord_range = sorted(p.range)
+		if (ans >= ord_range[0] and ans <= ord_range[1]):
+			within[p] = abs(p.range[1]-p.range[0])
+	key_list = list(within.keys())
+	# if somebody covered correct answer!
+	if len(key_list) > 0:
+		# make extra long example
+		best_range = abs(key_list[0].range[1] - key_list[0].range[0])+100
+		for p in key_list:
+			if abs(p.range[1]-p.range[0]) <= best_range:
+				if len(win_p) > 0:
+					win_p.pop()
+				win_p.append(p)
+				best_range = abs(p.range[1]-p.range[0])
+	
+	return win_p
+
+
+# complicated procedure to get the ticks to blit on the plot window, which are players' guesses
 def get_ticks():
 	guesses = []
 	ticks = []
 	values = []
-	new_players = sorted(players, key=lambda x: x.guess)
-	# value, then surface, then line which is two points
-	max_guess = new_players[-1].guess
-	min_guess = new_players[0].guess
+	# get max / min rage ends
+	min_guess = players[0].range[0] + 1
+	max_guess = -1
+	for p in players:
+		if p.range[0] < min_guess:
+			min_guess = p.range[0]
+		if p.range[1] > max_guess:
+			max_guess = p.range[1]
+
 	up_down = 0
-	for p in new_players:
-		scaled_guess = plot_box.rect.w*p.guess/(max_guess + min_guess)
+	max_covered = False   	# vars to track egde of plot box ticks
+	min_covered = False		# only want one name in each spot!
+
+	# construct list of ends
+	end_list = []
+	end_name = {}
+	for p in players:
+		for end in p.range:
+			end_list.append(end)
+			if end not in end_name:
+				if p.color == None:
+					p.color = pg.Color(0,0,0)
+				else:
+					end_name[end] = [p.name, p.color]
+			else:
+				if end != min_guess and end != max_guess:
+					end_name[end] = end_name[end][0] + "," + p.name
+
+	# remove double ticks
+	end_list = list(set(end_list))
+	
+	# sort so tick alternating works
+	end_list = sorted(end_list)
+	
+	for end in end_list:
+		scaled_guess = plot_box.rect.w*end/(max_guess + min_guess)
 		# with the above, then all guesses become 0->1 * coord scale of box, plot with this val in x!
 		if up_down%2 != 0:
 			guess_y_shift = -24
@@ -48,11 +102,14 @@ def get_ticks():
 		if up_down%2 == 0:
 			guess_y_shift = 4
 			tick_shift = -12
+		
 		# blit above or below alternating, commensurately in x based on max / min guesses
 		# special min/max_guess printing to make it look nice
-		surface = smallfont.render(str(p.guess)+", "+p.name, True, BLACK)
-		text_w , text_h = smallfont.size(str(p.guess)+","+p.name)
-		if p.guess != max_guess and p.guess != min_guess:
+		# blit both range[0] and range[1], with initals... so for each player, do both ends
+		# ^ now check the ends, if max or min, treat as so..
+		if (end != max_guess and end != min_guess):
+			surface = smallfont.render(str(end)+", "+end_name[end][0], True, end_name[end][1])
+			text_w , text_h = smallfont.size(str(end)+","+end_name[end][0])
 			guess_x = plot_box.rect.x + float(scaled_guess)+4
 			if up_down%2 != 0:
 				guess_y = plot_box.rect.y + guess_y_shift
@@ -64,17 +121,24 @@ def get_ticks():
 				ticks.append([(guess_x, plot_box.rect.y+plot_box.rect.h-4),(guess_x, plot_box.rect.y+(plot_box.rect.h-4)+tick_shift)])
 			values.append([surface, guess_x, guess_y])
 		else:
-			if p.guess == max_guess:
+			surface = smallfont.render(str(end)+", "+end_name[end][0], True, end_name[end][1])
+			text_w , text_h = smallfont.size(str(end)+","+end_name[end][0])
+			if end == max_guess and not max_covered:
 				values.append([surface,plot_box.rect.x+plot_box.rect.w+3, plot_box.rect.y])
-			if p.guess == min_guess:
-				surface = smallfont.render(p.name+","+str(p.guess), True, BLACK)
-				text_w , text_h = smallfont.size(p.name+","+str(p.guess))
-				values.append([surface, plot_box.rect.x-(text_w+3),plot_box.rect.y])
+				max_covered = True
+			if end == min_guess and not min_covered:
+				values.append([surface, plot_box.rect.x-(text_w+10),plot_box.rect.y])
+				min_covered = True
+
 		up_down = up_down + 1
 
-	return ticks, values, min_guess, max_guess
+	win_p = get_range_winner(players)
+
+	print("returned win_p, len: ", win_p, len(win_p))
+	return ticks, values, min_guess, max_guess, win_p
 
 
+# draw the small lines that are the guess ticks on the plot window
 def draw_ticks(ticks, values):
 	for val in values:
 		screen.blit(val[0],(val[1],val[2]))
@@ -84,6 +148,7 @@ def draw_ticks(ticks, values):
 		pg.draw.line(screen, BLACK, tick[0], tick[1], width=4)
 
 
+# look through players and return both the top score and if there are ties
 def top_score(players):
 	max_score = -1
 	top_p = players[0]
@@ -107,7 +172,6 @@ def score_animate(top_p, min_guess, max_guess, ans):
 	top_p.points.sort(key=lambda s:s[0])
 	num_p = int(.5*len(top_p.points))
 	less_points = []
-	bars = []
 	jump = 2
 	index = 0
 	# filter points a bit
@@ -116,37 +180,56 @@ def score_animate(top_p, min_guess, max_guess, ans):
 			break
 		less_points.append(top_p.points[index])
 		index = index + jump
+
+	# if they did bell, below can break, do something else
+	if not top_p.bell:		
+		# first construct bar locations / vals
+		bars = []
+		for i in range(len(less_points)):
+			point = less_points[i]
+			bar_w = 4
+			if i != len(less_points) - 1:
+				bar_w = abs(less_points[i+1][0]-point[0])
 	
-	# first construct bar locations / vals
-	for i in range(len(less_points)):
-		point = less_points[i]
-		bar_w = 4
-		if i != len(less_points) - 1:
-			bar_w = abs(less_points[i+1][0]-point[0])
+			# rect to blit at the left real x
+			bar = pg.Rect(point[0],point[1],bar_w,plot_box.rect.y+(plot_box.rect.h-point[1])-6)
+			# need guess space value
+			real_x = min_guess + ((max_guess - min_guess)*(point[0]-plot_box.rect.x)/(plot_box.rect.w))
+			if abs(real_x - ans) > .001:
+				# if not infinite for our scaling!
+				bars.append([bar,(abs(real_x-ans))**(-.3)] )
+			else:
+				bars.append([bar,1000])
 
-		# rect to blit at the left real x
-		bar = pg.Rect(point[0],point[1],bar_w,plot_box.rect.y+(plot_box.rect.h-point[1])-6)
-		# need guess space value
-		real_x = min_guess + ((max_guess - min_guess)*(point[0]-plot_box.rect.x)/(plot_box.rect.w))
-		if abs(real_x - ans) > .001:
-			bars.append([bar,(abs(real_x-ans))**(-.3)] )
-		else:
-			bars.append([bar,1000])
+		# then draw them with color gradient
+		max_real_x = max([bar_data[1] for bar_data in bars])
+		min_real_x = min([bar_data[1] for bar_data in bars])
+		# when at min -> black, when at max -> red
+		for bar in bars:
+			curr_x = bar[1]
+			red = 1.3*255*(curr_x - min_real_x)/(max_real_x - min_real_x)
+			# let it max out, and just slice back when needed
+			if red > 255:
+				red = 255
+			color = [red,0,0]
+			pg.draw.rect(screen, color, bar[0])
+			pg.time.delay(65)
+			pg.display.update()
+	
+	if top_p.bell:
+		# just draw circles at points based on relative scoring...
+		max_val = -1
+		for point in less_points:
+			real_x = min_guess + ((max_guess - min_guess)*(point[0]-plot_box.rect.x)/(plot_box.rect.w))
+			if abs(real_x - ans) > .001:
+				# if not infinite for our scaling!
+				red = 255*(1/abs(real_x-ans))/1000
+			else:
+				red = 255
 
-	# then draw them with color gradient
-	max_real_x = max([bar_data[1] for bar_data in bars])
-	min_real_x = min([bar_data[1] for bar_data in bars])
-	# when at min -> black, when at max -> red
-	for bar in bars:
-		curr_x = bar[1]
-		red = 1.3*255*(curr_x - min_real_x)/(max_real_x - min_real_x)
-		# let it max out, and just slice back when needed
-		if red > 255:
-			red = 255
-		color = [red,0,0]
-		pg.draw.rect(screen, color, bar[0])
-		pg.time.delay(65)
-		pg.display.update()
+			pg.draw.circle(screen, [red,0,0], (point[0],plot_box.rect.h+plot_box.rect.y-4), 10, width=4)
+			pg.time.delay(65)
+			pg.display.update()
 	
 	return None
 
@@ -158,7 +241,7 @@ def pick_player(cond):
 	for i in range(len(players)):
 		p = players[i]
 		if cond == "guess":
-			if p.guess == None:
+			if p.range == None:
 			    curr_player = p
 			    break
 		
@@ -190,6 +273,7 @@ def get_ques_surfs(ques, ans, round_count, size):
 	return y_ques_surfs, p_ques_surfs, ques_num
 
 
+# blit text, but wrap it based on max_width and where it starts on the screen
 def blit_wrap(surf_set, start_x, start_y, max_width):
 	# adjust these to adjust possible drop shadow
 	drop_x = -2
@@ -231,12 +315,13 @@ def show_intro(intro, intro_length):
 	            sys.exit()
 
 
+# when called, present current table of scores (meaning up to that point)
 def show_score(table, players):
 	x_offset = 120
 	y_offset = 20
-	#blit table background
+	# blit table background
 	screen.blit(table, [plot_box.rect.x + x_offset, plot_box.rect.y + y_offset])
-#	then blit lines of table
+	# then blit lines of table
 	count = 0
 	for p in players:
 		line = font.render(p.name+": "+str(round(sum(p.score),4)), True, BLACK)
@@ -343,10 +428,12 @@ clock = pg.time.Clock()
 manager = pg_gui.UIManager((WIDTH, HEIGHT), theme_path='theme.json')
 manager_plot = pg_gui.UIManager((WIDTH, HEIGHT), theme_path='theme_plot.json')
 manager_score = pg_gui.UIManager((WIDTH, HEIGHT), theme_path='theme_score.json')
+manager_color = pg_gui.UIManager((WIDTH, HEIGHT), theme_path='theme_color.json')
 
 # inital settings
 
 players = []
+curr_color = pg.Color(0,0,0)
 new = True
 new_ques = True
 plotting = False
@@ -359,9 +446,11 @@ mean = None
 std_dev = None
 points = []
 response = ""
+win_names  = ""   # names only of best ranges
 ticks = []
 round_count = 1
 num_rounds = 4
+range_boost  = 10  # how much  socre increased by range win
 
 # get vals from args
 num_players = len(sys.argv)
@@ -398,7 +487,7 @@ for line in file1.readlines():
 	    line_list = list(filter(lambda x: x in printable, line))
 	    line = "".join(line_list)
 	    lines.append(line)
-for lin in file2.readlines():
+for line in file2.readlines():
 	if line != '\n':
 	    line_list = list(filter(lambda x: x in printable, line))
 	    line = "".join(line_list)
@@ -415,7 +504,7 @@ ans  = float(questions[ques])
 y_ques_surfs, p_ques_surfs, ques_num = get_ques_surfs(ques, ans, round_count, 36)
 
 # set up recurring labels and boxes for game
-input_box = pg_gui.elements.UITextEntryLine(pg.Rect((42,670), (400, 200)), manager=manager)
+input_box = pg_gui.elements.UITextEntryLine(pg.Rect((42,670), (400, 200)), manager=manager, object_id="#main_text_entry")
 
 label_box = pg_gui.elements.UILabel(pg.Rect(42, 610, 400, 50), 'poop', manager=manager, object_id='#label_box')
 
@@ -435,8 +524,12 @@ label_score = pg_gui.elements.UILabel(pg.Rect(42, 650, 400, 50), "", manager=man
 
 label_correct = pg_gui.elements.UILabel(pg.Rect(42, 690, 400, 50), "", manager=manager, object_id='#label_correct')
 
-# shohw the intro image for a little bit first!
-show_intro(intro, 4000)
+color_pick = pg_gui.windows.UIColourPickerDialog(pg.Rect(580, 383, 580, 391), manager=manager_color, window_title = "Pick a color!", object_id="#color_picker")
+
+range_win = pg_gui.elements.UILabel(pg.Rect(24,  742, 400,  30), "", manager=manager_score, object_id="#range_win")
+
+# show the intro image for a little bit first!
+show_intro(intro, 400)
 
 screen.fill(WHITE)
 is_running = True
@@ -444,9 +537,12 @@ is_running = True
 while is_running:
 	if not new_ques and not plotting:
 		if next_check:
+			# need to hide stuff once next button pressed
+			# and reset some initial game settings
 			next_box.hide()
 			label_score.hide()
 			label_correct.hide()
+			range_win.hide()
 			input_box.show()
 			ques = rand.choice(list(questions.keys()))
 			ans  = float(questions[ques])
@@ -454,10 +550,13 @@ while is_running:
 			for p in players:
 				p.points = []
 				p.done = False
-				p.guess = None
+				p.range = None
 			new_ques = True
 			screen.blit(background, (0, 0))
 			next_check = False
+			win_names = ""
+			# best move is to actually rebuild this
+			color_pick = pg_gui.windows.UIColourPickerDialog(pg.Rect(580, 383, 580, 391), manager=manager_color, window_title = "Pick a color!", object_id="#color_picker")
 	# when not waiting for next button
 	else:
 		screen.blit(background, (0, 0))
@@ -471,12 +570,23 @@ while is_running:
 	    
 	    # these are pygame GUI specific events
 	    if event.type == pg.USEREVENT:
+	    	if event.user_type == pg_gui.UI_COLOUR_PICKER_COLOUR_PICKED:
+	    		if event.ui_element == color_pick:
+	    			curr_color = event.colour
+	    			# to make this not disappear, rebuild  it
+	    			color_pick = pg_gui.windows.UIColourPickerDialog(pg.Rect(580, 383, 580, 391), manager=manager_color, window_title = "Pick a color!", object_id="#color_picker")
+
 	    	if event.user_type == pg_gui.UI_TEXT_ENTRY_FINISHED:
-	    		response = event.text
-	    		input_box.set_text("")
+	    		if event.ui_object_id != "#color_picker.colour_channel_editor.text_entry_line":
+	    			response = event.text
+	    			input_box.set_text("")
+	    		if event.ui_object_id == "#main_text_entry":
+	    			if new_ques:
+	    				curr_player.color = copy.deepcopy(curr_color)
+	    				curr_color = pg.Color(0,0,0)
 	    	
 	    	if event.user_type == pg_gui.UI_BUTTON_PRESSED:
-	    		# cover buttons availabkle only while plotting
+	    		# cover buttons available only while plotting
 	    		if plotting:
 	    			if event.ui_element == plot_box:
 	    				if plot_click == False:
@@ -491,7 +601,6 @@ while is_running:
 	    					points = []
 	    					score, avg = guess_integral(curr_player.points, min_guess, max_guess)
 	    					print("name, score, avg: ", curr_player.name, score, avg)
-	    					print("ans: ", ans)
 	    					curr_player.score.append(100*score)	    		
 	    			# includes check for flat box, cant do both!
 	    			if event.ui_element == norm_box and not flat_plot and not score_check:
@@ -548,8 +657,11 @@ while is_running:
 	    manager.process_events(event)
 	    manager_plot.process_events(event)
 	    manager_score.process_events(event)
+	    manager_color.process_events(event)
 
 	if new_ques:
+		# hide main game boxes/labels before guesses all input
+		range_win.hide()
 		plot_box.hide()
 		done_box.hide()
 		flat_box.hide()
@@ -569,13 +681,14 @@ while is_running:
 
 		# get the guessing player and say so
 		curr_player,count = pick_player("guess")
-		label_box.set_text("- "+curr_player.name+" please enter a guess -")
+		label_box.set_text("- "+curr_player.name+" guess a range like a,b -")
 		
 		# if all guesses now recorded
 		if count == len(players):
+			color_pick.kill()
 			new_ques = False
 			plotting = True
-			ticks, values, min_guess, max_guess = get_ticks()
+			ticks, values, min_guess, max_guess, win_p = get_ticks()
 			# grab small version of question
 			ques_size = len(ques.split())
 			size = 24
@@ -598,26 +711,29 @@ while is_running:
 		# something was input!
 		if response != "":
 			try:
-				curr_player.guess = float(response)
+				# range form is a,b, so sep on comma
+				curr_player.range = [float(response.split(",")[0]),float(response.split(",")[1])]
 				# if only zeroes after decimal point, convert
-				if curr_player.guess.is_integer():
-					curr_player.guess = int(curr_player.guess)
-			except:
+				for i in range(len(curr_player.range)):
+					if curr_player.range[i].is_integer():
+						curr_player.range[i] = int(curr_player.range[i])
+
+			except Exception as e:
 				# throws out strings and such
-				label_box.set_text("Enter a number!")
+				label_box.set_text("Enter a number/range!")
 				delay = 2000
 			# no doubled guesses
 			for p in players:
-				if p.guess != None and p.name != curr_player.name:
-					if p.guess == curr_player.guess:
-						label_box.set_text("Already guessed!")
+				if p.range != None and p.name != curr_player.name:
+					if p.range == curr_player.range:
+						label_box.set_text("Exact range already guessed!")
 						delay = 2000
-						curr_player.guess = None
+						curr_player.range = None
 			# finally, make sure > 0
-			if curr_player.guess != None and curr_player.guess < 0:
+			if curr_player.range != None and min(curr_player.range) < 0:
 				label_box.set_text("Positives only!")
 				delay = 2000
-				curr_player.guess = None
+				curr_player.range = None
 
 	# now  for each player, get points to plot!
 	if not new_ques and plotting:
@@ -638,6 +754,7 @@ while is_running:
 		
 		# the player has pressed "BELL"
 		if norm_pick:
+			curr_player.bell = True
 			if mean == None:
 				label_box.set_text("Pick a mean")
 				if response != "":
@@ -693,10 +810,10 @@ while is_running:
 #							point[1] = point[1]/(1+scale)
 				
 				# make sure we dont plot on top of box borders, adjust purely for visuals
-				if mean < min_guess + 5:
+				if mean < min_guess + 3:
 					for point in line_points:
 						point[0] = point[0] + 5
-				if mean > max_guess - 5:
+				if mean > max_guess - 3:
 					for point in line_points:
 						point[0] = point[0] - 5
 
@@ -710,7 +827,6 @@ while is_running:
 				# finally, automaticaly socre the player, since theyre done
 				score, avg = guess_integral(curr_player.points, min_guess, max_guess)
 				print("name, score, avg: ", curr_player.name, score, avg)
-				print("ans: ", ans)
 				curr_player.score.append(100*score)
 
 		# the player has pressed "FLAT"
@@ -729,7 +845,6 @@ while is_running:
 			# finally, automatically score the player, since theyre done
 			score, avg = guess_integral(curr_player.points, min_guess, max_guess)
 			print("name, score, avg: ", curr_player.name, score, avg)
-			print("ans: ", ans)
 			curr_player.score.append(100*score)
 
 		# below, blit special cursor when drawing starts
@@ -751,6 +866,16 @@ while is_running:
 		# check if all players done plotting
 		if count == len(players):
 			# now we're done plotting, should have scores
+			# but add to scores who won the range question
+			if len(win_p) > 0:
+				for p in win_p:
+					print("someone won!")
+					p.score[-1]  =  p.score[-1] + range_boost
+					if win_names  == "":
+						win_names = win_names + p.name
+					else:
+						win_names = win_names + "," + p.name
+				range_win.set_text(win_names+" has the best range(s)! +"+str(range_boost))
 			plotting = False
 			top_p, doubles = top_score(players)
 			name_str = top_p.name
@@ -777,6 +902,11 @@ while is_running:
 			manager_score.draw_ui(screen)
 			pg.display.update()
 			score_animate(top_p,min_guess, max_guess, ans)
+			pg.time.delay(100)
+			# here place win message... after animate,  before resetting?
+			# or as well, while waiting for next
+			if len(win_p) > 0:
+				range_win.show()
 			done_box.show()
 			score_box.show()
 			norm_box.show()
@@ -789,6 +919,8 @@ while is_running:
 	manager.draw_ui(screen)
 	manager_score.update(time_delta)
 	manager_score.draw_ui(screen)
+	manager_color.update(time_delta)
+	manager_color.draw_ui(screen)
 
 	# if we're done, show scores last time
 	if round_count > num_rounds:
