@@ -320,7 +320,9 @@ def show_score(table, players):
 	# then blit lines of table
 	count = 0
 	for p in players:
-		line = font.render(p.name+": "+str(round(sum(p.score),4)), True, BLACK)
+		#p.name+": "+str(round(sum(p.score),4))+ "(last round score: str(round(sum(p.score[:-1]),4))"
+		#p.name+": "+str(round(sum(p.score),4))
+		line = score_font.render(p.name+": "+str(round(sum(p.score),3))+ " (last: "+str(round(sum(p.score[:-1]),3))+")", True, BLACK)
 		screen.blit(line, [plot_box.rect.x + x_offset + 30, plot_box.rect.y + y_offset + 124 + count*40])
 		count = count + 1
 
@@ -384,7 +386,7 @@ def gauss(x,m,s_dev):
 # the actual coordinates are in plot space, though!
 # center on mean, +- std dev on each side if possible
 def construct_norm(mean, std_dev):
-	num_points = 200
+	num_points = 150
 	norm_points = []
 	used_xs = []
 	# add one point that is exactly the mean
@@ -396,6 +398,7 @@ def construct_norm(mean, std_dev):
 	while len(norm_points) < num_points:
 		x = rand.uniform(mean-5*(std_dev), mean+5*(std_dev))
 		if x > max_guess or x < min_guess:
+			# can only guess within max ranges!
 			continue
 		if x in used_xs:
 			# should essentially never happen...
@@ -460,6 +463,7 @@ font = pg.font.Font("ProFolk.otf",28, bold=True)
 bigfont = pg.font.Font("ProFolk.otf",140, bold=True)
 smallfont = pg.font.Font("ProFolk.otf",22, bold=True)
 tinyfont = pg.font.SysFont('couriernew', 12, bold=False)
+score_font = pg.font.Font("ProFolk.otf",22, bold=True)
 
 # images
 
