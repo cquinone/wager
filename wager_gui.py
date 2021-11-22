@@ -684,7 +684,6 @@ while is_running:
 			color_pick.kill()
 			new_ques = False
 			plotting = True
-			players[2].color = (247, 160, 247, 255)
 			ticks, values, min_guess, max_guess, win_p = get_ticks()
 			# grab small version of question
 			ques_size = len(ques.split())
