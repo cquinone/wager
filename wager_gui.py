@@ -27,7 +27,7 @@ class Player:
 	    self.points = []
 	    self.range = None
 	    self.done = False
-	    self.color = None
+	    self.color = BLACK
 	    self.bell = False
 
 
@@ -79,13 +79,10 @@ def get_ticks():
 		for end in p.range:
 			end_list.append(end)
 			if end not in end_name:
-				if p.color == None:
-					p.color = pg.Color(0,0,0)
-				else:
-					end_name[end] = [p.name, p.color]
+				end_name[end] = [p.name, p.color]
 			else:
 				if end != min_guess and end != max_guess:
-					end_name[end] = end_name[end][0] + "," + p.name
+					end_name[end][0] = end_name[end][0] + "," + p.name
 
 	# remove double ticks
 	end_list = list(set(end_list))
@@ -134,7 +131,6 @@ def get_ticks():
 
 	win_p = get_range_winner(players)
 
-	print("returned win_p, len: ", win_p, len(win_p))
 	return ticks, values, min_guess, max_guess, win_p
 
 
@@ -688,6 +684,7 @@ while is_running:
 			color_pick.kill()
 			new_ques = False
 			plotting = True
+			players[2].color = (247, 160, 247, 255)
 			ticks, values, min_guess, max_guess, win_p = get_ticks()
 			# grab small version of question
 			ques_size = len(ques.split())
