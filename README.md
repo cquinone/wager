@@ -12,6 +12,14 @@ To play:
 Once the game has loaded, each player guesses in turn, and then plots their "bet",
 each "bet" is scored as 
 < 1/|ans-x| > (averaging based on their distribution == "bet").
-Press "c" while plotting to clear all points.
+
+CONTROLS / INPUT:
+On the first screen, click on the blue entry box and enter a range in the form "a,b",
+then press enter. You may (before pressing enter) pick a player color from the box on th right.
+Once plotting, click the  plot box once to begin, move the mouse, and then click again to finish.
+Press "c" while plotting to clear all points if you make a mistake. Once done plotting,
+click "DONE". To plot a flat line across the board, click the "FLAT" button. To plot a gaussian 
+with a chosen mean / std dev, click the "BELL"  button. After everyone has plotted and the score 
+animation completed, click "NEXT" to go to the next question, or click "SCORE TABLE" to see the current scores. 
 
 Note: the button "Score Table" may only be pressed in-between rounds.
